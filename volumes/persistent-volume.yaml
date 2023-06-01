@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jenkins-pv
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: "3Gi"
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain #pv data will be keeped after removing pvc
+  storageClassName: local-storage
+  claimRef: # link pv to pvc
+    name: jenkins-pvc
+    namespace: jenkins-ns
+  hostPath:
+    path: /c/Users/moaitlahcen/jenkins-k8s-pv-volume

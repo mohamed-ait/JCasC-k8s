@@ -1,0 +1,92 @@
+jenkins:
+  systemMessage: "Welcome to My Custom Jenkins!!!!"
+  numExecutors: 1
+  mode: NORMAL
+  scmCheckoutRetryCount: 3
+  labelString: "master"
+  authorizationStrategy:
+    globalMatrix:
+      grantedPermissions:
+        - "Overall/Read:authenticated"
+        - "Job/Read:authenticated"
+        - "View/Read:authenticated"
+        - "Overall/Administer:authenticated"
+  crumbIssuer: "standard"
+  remotingSecurity:
+    enabled: true
+
+  clouds:
+    - kubernetes:
+        name: "advanced-k8s-config"
+        skipTlsVerify: true
+        namespace: "jenkins-ns"
+        jenkinsUrl: "http://jenkins-service.jenkins-ns.svc.cluster.local:8080/"
+        connectTimeout: 0
+        readTimeout: 0
+        containerCapStr: 100
+        maxRequestsPerHostStr: 64
+        retentionTimeout: 5
+        templates:
+          - name: "k8s-agent"
+            namespace: "jenkins-ns"
+            label: "linux-x86_64"
+            nodeUsageMode: EXCLUSIVE
+            containers:
+              - name: "jnlp"
+                image: "inbound-agent-mine:latest"
+                alwaysPullImage: false
+                workingDir: "/home/jenkins"
+                ttyEnabled: true
+                resourceRequestCpu: "500m"
+                resourceLimitCpu: "1000m"
+                resourceRequestMemory: "1Gi"
+                resourceLimitMemory: "2Gi"
+            volumes:
+              - emptyDirVolume:
+                  memory: false
+                  mountPath: "/tmp"
+            idleMinutes: "1"
+            activeDeadlineSeconds: "120"
+            slaveConnectTimeout: "1000"
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              id: "test"
+              username: "test"
+              password: "test"
+              description: "Sample test credential"
+              scope: GLOBAL
+
+jobs:
+    - script: >
+        pipelineJob('configuration-as-code') {
+            definition {
+                cps {
+                    sandbox()
+                    script("""
+                      podTemplate(containers: [
+                          containerTemplate(
+                              name: 'python', 
+                              image: 'python:3.12.0b1-alpine3.18',
+                              command: 'sleep', 
+                              args: '30d')
+                      ]) {
+                          node(POD_LABEL) {
+                              stage('Get a python test') {
+                                  container('python') {
+                                      stage('Shell Execution') {
+                                          sh '''
+                                          echo "Hello! I am python "
+                                          '''
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                    """.stripIndent())
+                }
+            }
+        }
